@@ -1,7 +1,5 @@
 # 🔐 VoiceVault — Voice Biometric Payment Authentication System
 
-> Final MCA Project | FinTech + ML + Security + Speech AI
-
 ---
 
 ## 📌 Problem Solved
