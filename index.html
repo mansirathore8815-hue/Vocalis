@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VoiceVault — Voice Payment Auth</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --black: #0d0f14;
+  --ink: #1a1d26;
+  --muted: #6b7280;
+  --dim: #9ca3af;
+  --border: rgba(255,255,255,0.08);
+  --surface: rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.08);
+  --gold: #d4a853;
+  --gold-light: #e8c97a;
+  --green: #34d399;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --r: 12px;
+  font-family: 'DM Sans', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--black);color:#e8eaf0;min-height:100vh;overflow-x:hidden}
+
+/* ── Layout ── */
+.app{display:flex;min-height:100vh}
+.sidebar{width:260px;min-width:260px;background:var(--ink);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:28px 0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Sidebar ── */
+.logo{padding:0 24px 32px;border-bottom:1px solid var(--border)}
+.logo-mark{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--gold),#a06020);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-.3px;color:#fff}
+.logo-sub{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;padding-left:44px}
+.nav{padding:20px 12px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted);transition:all .18s;user-select:none}
+.nav-item:hover{background:var(--surface);color:#e8eaf0}
+.nav-item.active{background:rgba(212,168,83,0.12);color:var(--gold)}
+.nav-icon{font-size:17px;width:22px;text-align:center}
+.nav-divider{height:1px;background:var(--border);margin:10px 12px}
+.user-card{margin:0 12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a06020);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#fff;flex-shrink:0}
+.user-info{overflow:hidden}
+.user-name{font-size:13px;font-weight:500;color:#e8eaf0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-email{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.enroll-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-top:4px}
+.enroll-badge.enrolled{background:rgba(52,211,153,0.12);color:var(--green)}
+.enroll-badge.pending{background:rgba(212,168,83,0.15);color:var(--gold)}
+
+/* ── Header ── */
+.topbar{padding:20px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--ink)}
+.page-title{font-family:'DM Serif Display',serif;font-size:22px;color:#fff}
+.page-sub{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* ── Content ── */
+.content{flex:1;overflow-y:auto;padding:28px 32px}
+
+/* ── Cards ── */
+.card{background:var(--ink);border:1px solid var(--border);border-radius:16px;padding:24px}
+.card-title{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+/* ── Stat tiles ── */
+.stat-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px}
+.stat-value{font-size:28px;font-weight:300;font-variant-numeric:tabular-nums}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-up{color:var(--green)}
+.stat-warn{color:var(--gold)}
+.stat-normal{color:#e8eaf0}
+
+/* ── Forms ── */
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.form-label{font-size:12px;font-weight:500;color:var(--dim);letter-spacing:.3px}
+.form-input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:#e8eaf0;font-size:14px;font-family:inherit;outline:none;transition:border .18s}
+.form-input:focus{border-color:rgba(212,168,83,.5)}
+.form-input::placeholder{color:var(--muted)}
+.form-input.err{border-color:var(--red)}
+.form-hint{font-size:11px;color:var(--muted)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-family:inherit;font-weight:500;transition:all .18s;user-select:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#b8892f);color:#0d0f14;font-weight:600}
+.btn-gold:hover:not(:disabled){background:linear-gradient(135deg,var(--gold-light),var(--gold))}
+.btn-ghost{background:var(--surface);border:1px solid var(--border);color:#e8eaf0}
+.btn-ghost:hover:not(:disabled){background:var(--surface2)}
+.btn-danger{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);color:var(--red)}
+.btn-full{width:100%}
+.btn-sm{padding:7px 14px;font-size:12px}
+
+/* ── Voice recorder ── */
+.voice-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;text-align:center}
+.voice-phrase{font-family:'DM Serif Display',serif;font-size:17px;color:#fff;line-height:1.5;padding:16px;background:rgba(212,168,83,.06);border:1px dashed rgba(212,168,83,.3);border-radius:8px;margin-bottom:20px}
+.voice-mic{width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;transition:all .2s;background:var(--surface2)}
+.voice-mic.idle{background:var(--surface2)}
+.voice-mic.recording{background:rgba(248,113,113,.2);box-shadow:0 0 0 0 rgba(248,113,113,.6);animation:pulse 1s infinite}
+.voice-mic.done{background:rgba(52,211,153,.15)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.5)}70%{box-shadow:0 0 0 14px rgba(248,113,113,0)}100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}}
+.waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:32px;margin:12px 0}
+.wave-bar{width:3px;border-radius:2px;background:var(--gold);transition:height .1s}
+.voice-status{font-size:13px;color:var(--muted)}
+.voice-status.ok{color:var(--green)}
+.voice-status.fail{color:var(--red)}
+
+/* ── Progress dots ── */
+.dot-row{display:flex;gap:8px;justify-content:center;margin:16px 0}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--surface2);transition:all .3s}
+.dot.filled{background:var(--gold)}
+.dot.active{background:var(--gold);box-shadow:0 0 0 3px rgba(212,168,83,.25)}
+
+/* ── Tier badge ── */
+.tier-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600}
+.tier-1{background:rgba(52,211,153,.1);color:var(--green)}
+.tier-2{background:rgba(96,165,250,.1);color:var(--blue)}
+.tier-3{background:rgba(248,113,113,.1);color:var(--red)}
+
+/* ── Transactions ── */
+.txn-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+.txn-row:last-child{border-bottom:none}
+.txn-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.txn-icon.success{background:rgba(52,211,153,.1);color:var(--green)}
+.txn-icon.fail{background:rgba(248,113,113,.1);color:var(--red)}
+.txn-name{font-size:14px;font-weight:500;color:#e8eaf0}
+.txn-date{font-size:11px;color:var(--muted)}
+.txn-amount{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;margin-left:auto}
+.txn-amount.debit{color:#e8eaf0}
+.txn-tier{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;margin-left:8px}
+
+/* ── Toast ── */
+.toast-wrap{position:fixed;top:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transform:translateX(20px);transition:all .25s;pointer-events:auto;max-width:300px;border:1px solid transparent}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.success{background:#052e1a;border-color:rgba(52,211,153,.3);color:var(--green)}
+.toast.error{background:#2c0f0f;border-color:rgba(248,113,113,.3);color:var(--red)}
+.toast.info{background:#1a1d26;border-color:var(--border);color:#e8eaf0}
+
+/* ── Score bar ── */
+.score-bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;margin-top:8px}
+.score-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.score-fill.high{background:var(--green)}
+.score-fill.mid{background:var(--gold)}
+.score-fill.low{background:var(--red)}
+
+/* ── Step indicator ── */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:24px}
+.step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.step:not(:last-child)::after{content:'';position:absolute;top:14px;left:50%;width:100%;height:1px;background:var(--border)}
+.step-circle{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;background:var(--ink);z-index:1;position:relative;transition:all .3s}
+.step-circle.done{background:var(--green);border-color:var(--green);color:#0d0f14}
+.step-circle.active{background:rgba(212,168,83,.15);border-color:var(--gold);color:var(--gold)}
+.step-circle.pending{color:var(--muted)}
+.step-label{font-size:10px;color:var(--muted);margin-top:5px;text-align:center}
+
+/* ── Misc ── */
+.flex{display:flex}
+.flex-center{display:flex;align-items:center;justify-content:center}
+.gap-8{gap:8px}
+.gap-12{gap:12px}
+.gap-16{gap:16px}
+.mt-8{margin-top:8px}
+.mt-16{margin-top:16px}
+.mt-24{margin-top:24px}
+.mb-8{margin-bottom:8px}
+.mb-16{margin-bottom:16px}
+.text-sm{font-size:13px}
+.text-xs{font-size:11px}
+.text-muted{color:var(--muted)}
+.text-gold{color:var(--gold)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.font-serif{font-family:'DM Serif Display',serif}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.pin-row{display:flex;gap:8px;justify-content:center}
+.pin-digit{width:44px;height:54px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:#fff;font-size:20px;text-align:center;font-family:inherit;outline:none;transition:border .18s}
+.pin-digit:focus{border-color:var(--gold)}
+.result-box{padding:18px;border-radius:var(--r);border:1px solid}
+.result-box.ok{background:rgba(52,211,153,.05);border-color:rgba(52,211,153,.25)}
+.result-box.fail{background:rgba(248,113,113,.05);border-color:rgba(248,113,113,.25)}
+.hidden{display:none!important}
+.amount-display{font-family:'DM Serif Display',serif;font-size:36px;color:#fff;text-align:center;margin:16px 0;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<div id="toast-wrap" class="toast-wrap"></div>
+
+<div class="app" id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">
+        <div class="logo-icon">🔐</div>
+        <span class="logo-text">VoiceVault</span>
+      </div>
+      <div class="logo-sub">Biometric Payments</div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">⬛</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="enroll">
+        <span class="nav-icon">🎤</span> Voice Enroll
+      </div>
+      <div class="nav-item" data-page="pay">
+        <span class="nav-icon">💳</span> Send Payment
+      </div>
+      <div class="nav-item" data-page="history">
+        <span class="nav-icon">📋</span> History
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </nav>
+    <div id="sidebar-user" class="user-card hidden">
+      <div class="flex gap-8">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name">—</div>
+          <div class="user-email" id="user-email">—</div>
+          <span class="enroll-badge pending" id="enroll-badge">Not enrolled</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="page-sub" id="page-sub">Overview of your voice-secured wallet</div>
+      </div>
+      <div id="header-actions"></div>
+    </header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════ STATE ═══════════════════ */
+const API = "http://localhost:5000/api";
+let state = {
+  user: null,        // { user_id, name, email, enrolled }
+  page: "dashboard",
+  transactions: [],
+  recording: false,
+  mediaRecorder: null,
+  audioChunks: [],
+  enrollSamples: 0,  // 0..3
+  paySession: null,  // active payment session
+  payStep: 0,        // 0=form 1=voice 2=pin 3=done
+};
+
+/* ═══════════════════ TOAST ═══════════════════ */
+function toast(msg, type="info", dur=3000){
+  const w=document.getElementById("toast-wrap");
+  const t=document.createElement("div");
+  t.className=`toast ${type}`;
+  t.textContent=msg;
+  w.appendChild(t);
+  requestAnimationFrame(()=>t.classList.add("show"));
+  setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),300)},dur);
+}
+
+/* ═══════════════════ API HELPERS ═══════════════════ */
+async function api(path,method="GET",body=null){
+  const opts={method,headers:{"Content-Type":"application/json"}};
+  if(body) opts.body=JSON.stringify(body);
+  try{
+    const r=await fetch(API+path,opts);
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||"Request failed");
+    return d;
+  } catch(e){
+    if(e.message.includes("Failed to fetch")){
+      toast("Backend offline – using demo mode","info");
+      return MOCK(path,method,body);
+    }
+    throw e;
+  }
+}
+
+/* ═══════════════════ MOCK FALLBACK ═══════════════════ */
+function MOCK(path,method,body){
+  if(path==="/register") return {user_id:"demo-001",message:"User created"};
+  if(path==="/enroll"){
+    const n=(state.enrollSamples+1);
+    return {enrolled:n>=3,samples_done:n,samples_need:3,message:n>=3?"Enrolled!":"Sample "+n+"/3"};
+  }
+  if(path.includes("/challenge")) return {session_id:"sess-"+Date.now(),challenge:"My voice is my secure password",tier:1,amount:body?.amount||100,expires_in:120};
+  if(path.includes("/verify-voice")) return {voice_matched:true,score:0.9142,threshold:0.82,tier:state.paySession?.tier||1,pin_required:false,message:"Voice verified ✓"};
+  if(path.includes("/verify-pin")) return {pin_matched:true,message:"PIN verified ✓"};
+  if(path.includes("/execute")) return {success:true,txn_id:"TXN"+Math.random().toString(36).slice(2,10).toUpperCase(),amount:body?.amount||100,payee:body?.payee||"?",message:"Payment successful!"};
+  if(path.includes("/transactions")) return [{txn_id:"TXN001",payee:"Rahul Sharma",amount:500,tier:1,status:"SUCCESS",timestamp:Date.now()/1000-3600},{txn_id:"TXN002",payee:"Amazon",amount:2499,tier:2,status:"SUCCESS",timestamp:Date.now()/1000-86400}];
+  if(path.includes("/set-pin")) return {message:"PIN set"};
+  return {};
+}
+
+/* ═══════════════════ AUDIO ═══════════════════ */
+async function startRecording(){
+  if(!navigator.mediaDevices){toast("Microphone not available","error");return false;}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    state.audioChunks=[];
+    state.mediaRecorder=new MediaRecorder(stream,{mimeType:"audio/webm"});
+    state.mediaRecorder.ondataavailable=e=>{if(e.data.size>0)state.audioChunks.push(e.data);};
+    state.mediaRecorder.start();
+    state.recording=true;
+    return true;
+  } catch(e){
+    toast("Could not access microphone: "+e.message,"error");
+    return false;
+  }
+}
+
+async function stopRecording(){
+  return new Promise(res=>{
+    if(!state.mediaRecorder){res(null);return;}
+    state.mediaRecorder.onstop=()=>{
+      const blob=new Blob(state.audioChunks,{type:"audio/webm"});
+      const reader=new FileReader();
+      reader.onload=()=>{
+        // In demo mode just send a pseudo-random b64 string based on timestamp
+        const b64=reader.result.split(",")[1]||btoa("voice_"+Date.now());
+        state.recording=false;
+        res(b64);
+      };
+      reader.readAsDataURL(blob);
+    };
+    state.mediaRecorder.stop();
+    state.mediaRecorder.stream.getTracks().forEach(t=>t.stop());
+  });
+}
+
+function waveAnim(containerId, active){
+  const c=document.getElementById(containerId);
+  if(!c) return;
+  const bars=c.querySelectorAll(".wave-bar");
+  if(active){
+    const id=setInterval(()=>{
+      bars.forEach(b=>{b.style.height=(8+Math.random()*20)+"px";});
+      if(!state.recording) clearInterval(id);
+    },80);
+  } else {
+    bars.forEach(b=>b.style.height="4px");
+  }
+}
+
+/* ═══════════════════ ROUTER ═══════════════════ */
+function navigate(page){
+  state.page=page;
+  document.querySelectorAll(".nav-item").forEach(n=>{
+    n.classList.toggle("active",n.dataset.page===page);
+  });
+  const titles={
+    dashboard:["Dashboard","Overview of your voice-secured wallet"],
+    enroll:["Voice Enrollment","Register your voice biometric (3 samples required)"],
+    pay:["Send Payment","Authenticate and send money using your voice"],
+    history:["Transaction History","All your voice-verified payments"],
+    settings:["Settings","PIN management and account options"],
+  };
+  const [t,s]=titles[page]||["VoiceVault",""];
+  document.getElementById("page-title").textContent=t;
+  document.getElementById("page-sub").textContent=s;
+  const renders={dashboard:renderDashboard,enroll:renderEnroll,pay:renderPay,history:renderHistory,settings:renderSettings};
+  (renders[page]||renderDashboard)();
+}
+
+/* ═══════════════════ PAGE: REGISTER / DASHBOARD ═══════════════════ */
+function renderDashboard(){
+  const c=document.getElementById("content");
+  if(!state.user){
+    c.innerHTML=`
+    <div style="max-width:460px;margin:40px auto">
+      <div class="card">
+        <div style="text-align:center;margin-bottom:28px">
+          <div style="font-size:44px;margin-bottom:12px">🔐</div>
+          <div class="font-serif" style="font-size:26px;color:#fff">Welcome to VoiceVault</div>
+          <div class="text-sm text-muted mt-8">Secure payments authenticated by your voice</div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Full name</label>
+          <input class="form-input" id="reg-name" placeholder="Arjun Mehta"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Email address</label>
+          <input class="form-input" id="reg-email" type="email" placeholder="arjun@email.com"/>
+        </div>
+        <button class="btn btn-gold btn-full mt-16" onclick="register()">Create Account →</button>
+        <div class="text-xs text-muted" style="text-align:center;margin-top:12px">No password needed — your voice is your key</div>
+      </div>
+    </div>`;
+    return;
+  }
+  // Logged in dashboard
+  const txns=state.transactions;
+  const total=txns.reduce((s,t)=>s+t.amount,0);
+  const thisMonth=txns.filter(t=>Date.now()/1000-t.timestamp<30*86400).reduce((s,t)=>s+t.amount,0);
+  c.innerHTML=`
+  <div class="grid-3 mb-16">
+    <div class="stat-tile">
+      <div class="stat-value stat-normal">₹${total.toLocaleString("en-IN")}</div>
+      <div class="stat-label">Total transacted</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-value stat-up">₹${thisMonth.toLocaleString("en-IN")}</div>
+      <div class="stat-label">This month</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-value stat-warn">${txns.length}</div>
+      <div class="stat-label">Transactions</div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Voice status</div>
+      ${state.user.enrolled
+        ? `<div class="result-box ok">
+            <div class="flex gap-8" style="align-items:center">
+              <span style="font-size:22px">✅</span>
+              <div>
+                <div style="font-size:14px;color:var(--green);font-weight:500">Voice enrolled</div>
+                <div class="text-xs text-muted mt-8">3 voice samples on record</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-gold btn-full mt-16" onclick="navigate('pay')">Make a payment →</button>`
+        : `<div class="result-box fail">
+            <div class="flex gap-8" style="align-items:center">
+              <span style="font-size:22px">⚠️</span>
+              <div>
+                <div style="font-size:14px;color:var(--gold);font-weight:500">Not enrolled yet</div>
+                <div class="text-xs text-muted mt-8">Enroll your voice to make payments</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-gold btn-full mt-16" onclick="navigate('enroll')">Enroll Voice →</button>`
+      }
+    </div>
+    <div class="card">
+      <div class="card-title">Security tiers</div>
+      <div class="flex-center" style="flex-direction:column;gap:10px">
+        <div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+          <span class="tier-badge tier-1">Tier 1</span>
+          <span class="text-sm">Voice only</span>
+          <span class="text-xs text-muted">≤ ₹1,000</span>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+          <span class="tier-badge tier-2">Tier 2</span>
+          <span class="text-sm">Voice + PIN</span>
+          <span class="text-xs text-muted">≤ ₹10,000</span>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+          <span class="tier-badge tier-3">Tier 3</span>
+          <span class="text-sm">Voice + PIN + Review</span>
+          <span class="text-xs text-muted">&gt; ₹10,000</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  ${txns.length>0?`
+  <div class="card mt-16">
+    <div class="card-title">Recent transactions</div>
+    ${txns.slice(0,4).map(txnRow).join("")}
+  </div>`:""}`;
+}
+
+function txnRow(t){
+  const d=new Date(t.timestamp*1000);
+  const dateStr=d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+  return `<div class="txn-row">
+    <div class="txn-icon success">✓</div>
+    <div>
+      <div class="txn-name">${t.payee}</div>
+      <div class="txn-date">${dateStr} · ${t.txn_id} <span class="tier-badge tier-${t.tier}" style="font-size:9px;padding:1px 5px">T${t.tier}</span></div>
+    </div>
+    <div class="txn-amount debit">−₹${t.amount.toLocaleString("en-IN")}</div>
+  </div>`;
+}
+
+/* ═══════════════════ PAGE: ENROLL ═══════════════════ */
+function renderEnroll(){
+  const c=document.getElementById("content");
+  if(!state.user){c.innerHTML=`<div class="text-muted" style="text-align:center;padding:60px">Please <span class="text-gold" style="cursor:pointer" onclick="navigate('dashboard')">create an account</span> first.</div>`;return;}
+  if(state.user.enrolled){
+    c.innerHTML=`<div style="max-width:480px;margin:40px auto"><div class="card" style="text-align:center">
+      <div style="font-size:44px">🎤</div>
+      <div class="font-serif" style="font-size:22px;color:#fff;margin:12px 0">Voice enrolled!</div>
+      <div class="text-sm text-muted">Your voice biometric is securely registered.</div>
+      <div class="mt-16 text-xs text-muted" style="padding:12px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+        To re-enroll, clear enrollment from Settings first.
+      </div>
+      <button class="btn btn-gold btn-full mt-16" onclick="navigate('pay')">Make a payment →</button>
+    </div></div>`;
+    return;
+  }
+  c.innerHTML=`
+  <div style="max-width:520px;margin:0 auto">
+    <div class="card">
+      <div class="card-title">Step 1 of 1 — Record 3 voice samples</div>
+      <div class="text-sm text-muted mb-16">We record 3 samples of your voice to build a robust biometric profile. Speak clearly in a quiet environment.</div>
+      <div class="dot-row" id="enroll-dots">
+        <div class="dot ${state.enrollSamples>0?'filled':''}"></div>
+        <div class="dot ${state.enrollSamples>1?'filled':''}"></div>
+        <div class="dot ${state.enrollSamples>2?'filled':''}"></div>
+      </div>
+      <div class="voice-box">
+        <div class="voice-phrase" id="enroll-phrase">
+          "My voice is my secure password"
+        </div>
+        <button class="voice-mic idle" id="enroll-mic" onclick="handleEnrollMic()">🎤</button>
+        <div class="waveform" id="enroll-wave">
+          ${Array(12).fill('<div class="wave-bar" style="height:4px"></div>').join("")}
+        </div>
+        <div class="voice-status" id="enroll-status">Tap the mic to record sample ${state.enrollSamples+1} of 3</div>
+      </div>
+      ${state.enrollSamples===0?`
+      <div class="mt-16 text-xs text-muted" style="padding:14px;background:rgba(212,168,83,.05);border:1px dashed rgba(212,168,83,.2);border-radius:8px">
+        <strong class="text-gold">Anti-replay protection:</strong> A new challenge phrase is generated each time you pay, so recordings cannot be reused.
+      </div>`:""}
+    </div>
+  </div>`;
+}
+
+const ENROLL_PHRASES=[
+  '"My voice is my secure password"',
+  '"Authorize this payment with my voice"',
+  '"Voice verification for secure banking"',
+];
+
+async function handleEnrollMic(){
+  const btn=document.getElementById("enroll-mic");
+  const status=document.getElementById("enroll-status");
+  if(!state.recording){
+    const ok=await startRecording();
+    if(!ok) return;
+    btn.className="voice-mic recording";
+    btn.textContent="⏹";
+    status.textContent="Recording… speak the phrase clearly";
+    status.className="voice-status";
+    waveAnim("enroll-wave",true);
+  } else {
+    btn.className="voice-mic idle";
+    btn.textContent="⏳";
+    status.textContent="Processing…";
+    const b64=await stopRecording();
+    waveAnim("enroll-wave",false);
+    try{
+      const res=await api("/enroll","POST",{user_id:state.user.user_id,audio_b64:b64||"demo_audio",sample_index:state.enrollSamples});
+      state.enrollSamples=res.samples_done;
+      if(res.enrolled){
+        state.user.enrolled=true;
+        updateSidebarUser();
+        toast("Voice enrolled successfully! 🎤","success");
+        btn.className="voice-mic done";
+        btn.textContent="✓";
+        status.textContent="Enrollment complete!";
+        status.className="voice-status ok";
+        setTimeout(()=>navigate("pay"),1500);
+      } else {
+        btn.className="voice-mic idle";
+        btn.textContent="🎤";
+        status.textContent=`Sample ${res.samples_done}/3 saved. Record next sample.`;
+        toast(`Sample ${res.samples_done}/3 recorded`,"info");
+        // Update dots
+        renderEnroll();
+      }
+    } catch(e){
+      btn.className="voice-mic idle";
+      btn.textContent="🎤";
+      status.textContent="Error: "+e.message;
+      status.className="voice-status fail";
+      toast(e.message,"error");
+    }
+  }
+}
+
+/* ═══════════════════ PAGE: PAY ═══════════════════ */
+function renderPay(){
+  const c=document.getElementById("content");
+  if(!state.user){c.innerHTML=`<div class="text-muted" style="text-align:center;padding:60px">Please <span class="text-gold" style="cursor:pointer" onclick="navigate('dashboard')">create an account</span> first.</div>`;return;}
+  if(!state.user.enrolled){c.innerHTML=`<div style="max-width:480px;margin:40px auto"><div class="card" style="text-align:center">
+    <div style="font-size:44px">⚠️</div>
+    <div class="font-serif" style="font-size:22px;color:#fff;margin:12px 0">Voice not enrolled</div>
+    <div class="text-sm text-muted mb-16">You must enroll your voice before making payments.</div>
+    <button class="btn btn-gold btn-full" onclick="navigate('enroll')">Enroll now →</button>
+  </div></div>`;return;}
+
+  state.payStep=0;
+  state.paySession=null;
+  renderPayStep();
+}
+
+function renderPayStep(){
+  const c=document.getElementById("content");
+  const steps=["Amount","Voice","PIN","Done"];
+  const stepHTML=`<div class="steps">${steps.map((s,i)=>`<div class="step">
+    <div class="step-circle ${i<state.payStep?'done':i===state.payStep?'active':'pending'}">${i<state.payStep?'✓':(i+1)}</div>
+    <div class="step-label">${s}</div>
+  </div>`).join("")}</div>`;
+
+  if(state.payStep===0) renderPayForm(c,stepHTML);
+  else if(state.payStep===1) renderPayVoice(c,stepHTML);
+  else if(state.payStep===2) renderPayPIN(c,stepHTML);
+  else renderPayDone(c,stepHTML);
+}
+
+function renderPayForm(c,steps){
+  c.innerHTML=`<div style="max-width:500px;margin:0 auto"><div class="card">${steps}
+    <div class="form-row">
+      <label class="form-label">Pay to</label>
+      <input class="form-input" id="pay-payee" placeholder="Name / UPI ID / account"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Amount (₹)</label>
+      <input class="form-input" id="pay-amount" type="number" min="1" placeholder="500"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Note (optional)</label>
+      <input class="form-input" id="pay-note" placeholder="Dinner split, rent…"/>
+    </div>
+    <div id="tier-preview"></div>
+    <button class="btn btn-gold btn-full mt-16" onclick="startPayment()">Continue to Voice Auth →</button>
+  </div></div>`;
+  document.getElementById("pay-amount").addEventListener("input",previewTier);
+}
+
+function previewTier(){
+  const amt=parseFloat(document.getElementById("pay-amount").value)||0;
+  const el=document.getElementById("tier-preview");
+  if(amt<=0){el.innerHTML="";return;}
+  let tier,label,detail;
+  if(amt<=1000){tier=1;label="Tier 1";detail="Voice verification only";}
+  else if(amt<=10000){tier=2;label="Tier 2";detail="Voice + PIN required";}
+  else{tier=3;label="Tier 3";detail="Voice + PIN + manual review";}
+  el.innerHTML=`<div class="flex gap-8 mt-8" style="align-items:center;padding:10px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+    <span class="tier-badge tier-${tier}">${label}</span>
+    <span class="text-sm text-muted">${detail}</span>
+  </div>`;
+}
+
+async function startPayment(){
+  const payee=document.getElementById("pay-payee").value.trim();
+  const amount=parseFloat(document.getElementById("pay-amount").value)||0;
+  const note=document.getElementById("pay-note").value.trim();
+  if(!payee){toast("Enter a payee","error");return;}
+  if(amount<=0){toast("Enter a valid amount","error");return;}
+  try{
+    const res=await api("/payment/challenge","POST",{user_id:state.user.user_id,amount});
+    state.paySession={...res,payee,note};
+    state.payStep=1;
+    renderPayStep();
+  } catch(e){toast(e.message,"error");}
+}
+
+function renderPayVoice(c,steps){
+  const s=state.paySession;
+  c.innerHTML=`<div style="max-width:500px;margin:0 auto"><div class="card">${steps}
+    <div class="amount-display">₹${parseFloat(s.amount).toLocaleString("en-IN")}</div>
+    <div class="text-sm text-muted" style="text-align:center;margin-bottom:20px">to <strong style="color:#e8eaf0">${s.payee}</strong></div>
+    <div class="voice-box">
+      <div class="text-xs text-muted mb-8">Speak this exact phrase to verify your identity:</div>
+      <div class="voice-phrase">"${s.challenge}"</div>
+      <button class="voice-mic idle" id="pay-mic" onclick="handlePayVoice()">🎤</button>
+      <div class="waveform" id="pay-wave">${Array(12).fill('<div class="wave-bar" style="height:4px"></div>').join("")}</div>
+      <div class="voice-status" id="pay-status">Tap mic and speak the phrase above</div>
+    </div>
+    <div id="voice-result"></div>
+    <div class="flex gap-8 mt-16">
+      <button class="btn btn-ghost" onclick="navigate('pay')">Cancel</button>
+    </div>
+  </div></div>`;
+}
+
+async function handlePayVoice(){
+  const btn=document.getElementById("pay-mic");
+  const status=document.getElementById("pay-status");
+  if(!state.recording){
+    const ok=await startRecording();
+    if(!ok) return;
+    btn.className="voice-mic recording";btn.textContent="⏹";
+    status.textContent="Recording… speak clearly";status.className="voice-status";
+    waveAnim("pay-wave",true);
+  } else {
+    btn.className="voice-mic idle";btn.textContent="⏳";
+    status.textContent="Verifying voice…";
+    const b64=await stopRecording();
+    waveAnim("pay-wave",false);
+    try{
+      const res=await api("/payment/verify-voice","POST",{session_id:state.paySession.session_id,audio_b64:b64||"demo_audio"});
+      const pct=Math.round(res.score*100);
+      const cls=res.score>=0.9?"high":res.score>=0.82?"mid":"low";
+      document.getElementById("voice-result").innerHTML=`
+        <div class="result-box ${res.voice_matched?'ok':'fail'} mt-16">
+          <div class="flex gap-8" style="align-items:center;margin-bottom:8px">
+            <span>${res.voice_matched?'✅':'❌'}</span>
+            <div style="font-size:14px;font-weight:500;color:${res.voice_matched?'var(--green)':'var(--red)'}">${res.message}</div>
+          </div>
+          <div class="text-xs text-muted">Match score: ${pct}% (threshold: ${Math.round(res.threshold*100)}%)</div>
+          <div class="score-bar"><div class="score-fill ${cls}" style="width:${pct}%"></div></div>
+        </div>`;
+      if(res.voice_matched){
+        btn.className="voice-mic done";btn.textContent="✓";
+        status.textContent="Voice verified!";status.className="voice-status ok";
+        state.paySession.voiceOk=true;
+        toast("Voice matched!","success");
+        setTimeout(()=>{
+          if(res.pin_required||state.paySession.tier>=2){state.payStep=2;}
+          else{state.payStep=3;}
+          renderPayStep();
+        },1200);
+      } else {
+        btn.className="voice-mic idle";btn.textContent="🎤";
+        status.textContent="Try again";status.className="voice-status fail";
+        toast("Voice not matched — try again","error");
+      }
+    } catch(e){
+      btn.className="voice-mic idle";btn.textContent="🎤";
+      status.textContent="Error: "+e.message;status.className="voice-status fail";
+      toast(e.message,"error");
+    }
+  }
+}
+
+function renderPayPIN(c,steps){
+  const s=state.paySession;
+  c.innerHTML=`<div style="max-width:500px;margin:0 auto"><div class="card">${steps}
+    <div class="amount-display">₹${parseFloat(s.amount).toLocaleString("en-IN")}</div>
+    <div class="text-sm text-muted" style="text-align:center;margin-bottom:20px">to <strong style="color:#e8eaf0">${s.payee}</strong></div>
+    <div class="voice-box">
+      <div class="text-sm" style="margin-bottom:16px;text-align:center">Enter your 6-digit security PIN to confirm this transaction</div>
+      <div class="pin-row">
+        ${Array(6).fill(0).map((_,i)=>`<input class="pin-digit" id="pin-${i}" type="password" maxlength="1" inputmode="numeric" oninput="pinMove(this,${i})" onkeydown="pinBack(event,${i})">`).join("")}
+      </div>
+      <div class="voice-status" id="pin-status" style="margin-top:12px">Enter PIN to complete payment</div>
+    </div>
+    <div class="flex gap-8 mt-16">
+      <button class="btn btn-ghost" onclick="navigate('pay')">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="verifyPIN()">Confirm Payment →</button>
+    </div>
+  </div></div>`;
+  setTimeout(()=>document.getElementById("pin-0")?.focus(),50);
+}
+
+function pinMove(el,i){
+  el.value=el.value.replace(/\D/g,"").slice(0,1);
+  if(el.value&&i<5)document.getElementById("pin-"+(i+1)).focus();
+  if(i===5&&el.value)verifyPIN();
+}
+function pinBack(e,i){
+  if(e.key==="Backspace"&&!e.target.value&&i>0)document.getElementById("pin-"+(i-1)).focus();
+}
+
+async function verifyPIN(){
+  const pin=Array(6).fill(0).map((_,i)=>document.getElementById("pin-"+i)?.value||"").join("");
+  if(pin.length<6){toast("Enter all 6 digits","error");return;}
+  try{
+    const res=await api("/payment/verify-pin","POST",{session_id:state.paySession.session_id,pin});
+    if(res.pin_matched){
+      toast("PIN verified!","success");
+      state.paySession.pinOk=true;
+      state.payStep=3;
+      renderPayStep();
+    } else {
+      document.getElementById("pin-status").textContent="Incorrect PIN";
+      document.getElementById("pin-status").className="voice-status fail";
+      toast("Incorrect PIN","error");
+      Array(6).fill(0).forEach((_,i)=>{const el=document.getElementById("pin-"+i);if(el)el.value="";});
+      document.getElementById("pin-0").focus();
+    }
+  } catch(e){toast(e.message,"error");}
+}
+
+async function renderPayDone(c,steps){
+  // Execute the payment
+  try{
+    const res=await api("/payment/execute","POST",{
+      session_id:state.paySession.session_id,
+      payee:state.paySession.payee,
+      note:state.paySession.note,
+    });
+    c.innerHTML=`<div style="max-width:500px;margin:0 auto"><div class="card" style="text-align:center">${steps}
+      <div style="font-size:56px;margin:20px 0">✅</div>
+      <div class="font-serif" style="font-size:26px;color:var(--green)">Payment Sent!</div>
+      <div class="amount-display">${res.message.split("₹")[0]}₹${parseFloat(state.paySession.amount).toLocaleString("en-IN")}</div>
+      <div class="text-sm text-muted">to <strong style="color:#e8eaf0">${state.paySession.payee}</strong></div>
+      <div class="mt-16 text-xs text-muted" style="padding:12px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+        Transaction ID: <span style="font-family:monospace;color:#e8eaf0">${res.txn_id}</span>
+      </div>
+      <div class="flex gap-8 mt-24">
+        <button class="btn btn-ghost" style="flex:1" onclick="loadHistory()">View History</button>
+        <button class="btn btn-gold" style="flex:1" onclick="navigate('pay')">New Payment</button>
+      </div>
+    </div></div>`;
+    // Save to local transactions
+    state.transactions.unshift({
+      txn_id:res.txn_id,
+      payee:state.paySession.payee,
+      amount:parseFloat(state.paySession.amount),
+      tier:state.paySession.tier,
+      status:"SUCCESS",
+      timestamp:Date.now()/1000,
+    });
+    toast(res.message,"success",4000);
+  } catch(e){
+    c.innerHTML=`<div style="max-width:500px;margin:0 auto"><div class="card" style="text-align:center">${steps}
+      <div style="font-size:56px;margin:20px 0">❌</div>
+      <div class="font-serif" style="font-size:22px;color:var(--red)">Payment Failed</div>
+      <div class="text-sm text-muted mt-8">${e.message}</div>
+      <button class="btn btn-gold btn-full mt-24" onclick="navigate('pay')">Try again</button>
+    </div></div>`;
+  }
+}
+
+/* ═══════════════════ PAGE: HISTORY ═══════════════════ */
+async function loadHistory(){
+  if(state.user){
+    try{state.transactions=await api(`/transactions/${state.user.user_id}`);}catch(e){}
+  }
+  navigate("history");
+}
+
+function renderHistory(){
+  const c=document.getElementById("content");
+  const txns=state.transactions;
+  if(!state.user){c.innerHTML=`<div class="text-muted" style="text-align:center;padding:60px">Please create an account first.</div>`;return;}
+  if(!txns.length){
+    c.innerHTML=`<div style="text-align:center;padding:60px"><div style="font-size:48px;margin-bottom:12px">📋</div><div class="text-muted">No transactions yet.</div><button class="btn btn-gold mt-16" onclick="navigate('pay')">Make first payment</button></div>`;
+    return;
+  }
+  c.innerHTML=`<div class="card">${txns.map(txnRow).join("")}</div>`;
+}
+
+/* ═══════════════════ PAGE: SETTINGS ═══════════════════ */
+function renderSettings(){
+  const c=document.getElementById("content");
+  if(!state.user){c.innerHTML=`<div class="text-muted" style="text-align:center;padding:60px">Please create an account first.</div>`;return;}
+  c.innerHTML=`
+  <div style="max-width:520px">
+    <div class="card mb-16">
+      <div class="card-title">Security PIN</div>
+      <div class="text-sm text-muted mb-16">Required for payments above ₹1,000 (Tier 2 &amp; 3)</div>
+      <div class="form-row">
+        <label class="form-label">New 6-digit PIN</label>
+        <input class="form-input" id="set-pin" type="password" maxlength="6" inputmode="numeric" placeholder="••••••"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Confirm PIN</label>
+        <input class="form-input" id="set-pin2" type="password" maxlength="6" inputmode="numeric" placeholder="••••••"/>
+      </div>
+      <button class="btn btn-gold" onclick="setPIN()">Save PIN</button>
+    </div>
+    <div class="card mb-16">
+      <div class="card-title">Voice enrollment</div>
+      <div class="flex gap-8" style="align-items:center">
+        <span class="enroll-badge ${state.user.enrolled?'enrolled':'pending'}">${state.user.enrolled?"Enrolled":"Not enrolled"}</span>
+        ${state.user.enrolled?`<button class="btn btn-danger btn-sm" onclick="clearEnrollment()">Clear enrollment</button>`:
+        `<button class="btn btn-ghost btn-sm" onclick="navigate('enroll')">Enroll voice</button>`}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Account</div>
+      <div class="text-sm">Name: <strong class="text-gold">${state.user.name}</strong></div>
+      <div class="text-sm mt-8">Email: <strong>${state.user.email}</strong></div>
+      <div class="divider"></div>
+      <button class="btn btn-danger btn-sm" onclick="logout()">Sign out</button>
+    </div>
+  </div>`;
+}
+
+async function setPIN(){
+  const p1=document.getElementById("set-pin").value;
+  const p2=document.getElementById("set-pin2").value;
+  if(p1.length!==6||!/^\d{6}$/.test(p1)){toast("PIN must be 6 digits","error");return;}
+  if(p1!==p2){toast("PINs do not match","error");return;}
+  try{
+    await api("/set-pin","POST",{user_id:state.user.user_id,pin:p1});
+    toast("PIN saved successfully","success");
+    document.getElementById("set-pin").value="";
+    document.getElementById("set-pin2").value="";
+  } catch(e){toast(e.message,"error");}
+}
+
+function clearEnrollment(){
+  if(!confirm("Clear voice enrollment? You must re-enroll to make payments.")) return;
+  state.user.enrolled=false;
+  state.enrollSamples=0;
+  updateSidebarUser();
+  toast("Voice enrollment cleared","info");
+  renderSettings();
+}
+
+function logout(){
+  state.user=null;state.transactions=[];state.enrollSamples=0;state.paySession=null;state.payStep=0;
+  document.getElementById("sidebar-user").classList.add("hidden");
+  updateSidebarUser();
+  navigate("dashboard");
+  toast("Signed out","info");
+}
+
+/* ═══════════════════ REGISTER ═══════════════════ */
+async function register(){
+  const name=document.getElementById("reg-name")?.value.trim();
+  const email=document.getElementById("reg-email")?.value.trim();
+  if(!name||!email){toast("Fill all fields","error");return;}
+  try{
+    const res=await api("/register","POST",{name,email});
+    state.user={user_id:res.user_id,name,email,enrolled:false};
+    state.enrollSamples=0;
+    updateSidebarUser();
+    toast("Account created! Now enroll your voice.","success");
+    navigate("enroll");
+  } catch(e){toast(e.message,"error");}
+}
+
+function updateSidebarUser(){
+  const u=state.user;
+  const box=document.getElementById("sidebar-user");
+  if(!u){box.classList.add("hidden");return;}
+  box.classList.remove("hidden");
+  document.getElementById("user-avatar").textContent=u.name.charAt(0).toUpperCase();
+  document.getElementById("user-name").textContent=u.name;
+  document.getElementById("user-email").textContent=u.email;
+  const badge=document.getElementById("enroll-badge");
+  badge.textContent=u.enrolled?"Enrolled":"Not enrolled";
+  badge.className=`enroll-badge ${u.enrolled?"enrolled":"pending"}`;
+}
+
+/* ═══════════════════ INIT ═══════════════════ */
+document.querySelectorAll(".nav-item").forEach(n=>{
+  n.addEventListener("click",()=>navigate(n.dataset.page));
+});
+navigate("dashboard");
+</script>
+</body>
+</html>
